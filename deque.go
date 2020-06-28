@@ -1,6 +1,6 @@
 // The MIT License
 //
-// Copyright (c) 2019 Peter A McGill
+// Copyright (c) 2020 Peter A McGill
 //
 package main
 import (
