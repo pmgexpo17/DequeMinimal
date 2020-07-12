@@ -1,6 +1,6 @@
 // The MIT License
 //
-// Copyright (c) 2019 Peter A McGill
+// Copyright (c) 2020 Peter A McGill
 //
 package main
 import (
@@ -40,10 +40,10 @@ func (dq *Deque) Get(i int) interface{} {
   if dq.IsEmpty() {
     panic("Can't get an item from an empty list")
   }
-	if i < 0 || i >= len(dq.items) {
-		panic("Invalid index")
-	}
-	return dq.items[i]
+  if i < 0 || i >= len(dq.items) {
+    panic("Invalid index")
+  }
+  return dq.items[i]
 }
 
 // -------------------------------------------------------------- //
@@ -53,8 +53,8 @@ func (dq *Deque) Insert(i int, item interface{}) {
   if dq.IsEmpty() {
     panic("Can't insert into an empty list")
   }
-	if i < 0 || i >= len(dq.items) {
-	  panic("Invalid index")
+  if i < 0 || i >= len(dq.items) {
+    panic("Invalid index")
   }
   sitem := []interface{}{item}
   temp := append(sitem,dq.items[i:]...)
@@ -98,7 +98,7 @@ func (dq *Deque) PushLeft(item interface{}) {
 // PushRight
 // ---------------------------------------------------------------//
 func (dq *Deque) PushRight(item interface{}) {
-	dq.items = append(dq.items, item)
+  dq.items = append(dq.items, item)
 }
 
 // -------------------------------------------------------------- //
@@ -116,8 +116,8 @@ func (dq *Deque) Set(i int, item interface{}) {
     panic("Can't set into an empty list")
   }
   if i < 0 || i >= len(dq.items) {
-		panic("Invalid index")
-	}
+    panic("Invalid index")
+  }
   dq.items[i] = item
 }
 
@@ -125,7 +125,7 @@ func (dq *Deque) Set(i int, item interface{}) {
 // String
 // ---------------------------------------------------------------//
 func (dq *Deque) String() string {
-	return fmt.Sprintf("%v",dq.items)
+  return fmt.Sprintf("%v",dq.items)
 }
 
 //================================================================//
