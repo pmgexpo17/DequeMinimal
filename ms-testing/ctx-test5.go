@@ -162,6 +162,7 @@ func (r *Actor) start(ctx context.Context, doneCh SignalChannel) {
 //================================================================//
 type Handler struct {	
   groupSize int
+  status int
 }
 
 //------------------------------------------------------------------//
@@ -180,18 +181,21 @@ func (h *Handler) handle(ctx context.Context, doneCh SignalChannel) {
         if signal.error != nil {
 	  active = false
 	  fmt.Printf("microservice[%d] has failed, all actors are now cancelled\n%v\n",signal.id,signal.error)
+	  h.status = 500
 	  break
 	}
 	fmt.Printf("@@@@@@@@@@@ Microservice[%d] is complete @@@@@@@@@@\n",signal.id)
 	doneCounter += 1
 	if doneCounter == h.groupSize {
 	  active = false
-	  fmt.Printf("!!! Microservice group is now complete and successful !!!\n")					
+	  fmt.Printf("!!! Microservice group is now complete and successful !!!\n")
+	  h.status = 200
 	  break
 	}
       case <-ctx.Done():
 	active = false
 	fmt.Printf("handler is canceled!\n")
+	h.status = 409
         break
     }
   }
@@ -211,7 +215,9 @@ func (h *Handler) run(jpacket jobPacket, ctx10 context.Context) {
   actorGroup.run(ctx11, doneCh)
   go h.sigterm(cancel)
   h.handle(ctx11, doneCh)
-  cancel()
+  if h.status != 200 {
+    cancel()
+  }
   // wait for actors to respond to cancelation before closing the doneCh
   time.Sleep(2 * time.Second)
 }
