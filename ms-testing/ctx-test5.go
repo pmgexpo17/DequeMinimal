@@ -52,15 +52,10 @@ func init() {
 //================================================================//
 type RandomRange struct {
 	seed, min, max int
-	src *rand.Rand
 }
 
 func (rr *RandomRange) rand(size int, newSrc ...bool) int {
-	if rr.src == nil || (newSrc != nil && newSrc[0]) {
-		src := rand.NewSource(time.Now().UnixNano())
-		rr.src = rand.New(src)
-	}
-	return rr.src.Intn(size) // return a random number between 0 - size-1
+	return rand.Intn(size) // return a random number between 0 - size-1
 }
 
 // get next random value within the interval including min and max
@@ -69,16 +64,24 @@ func (rr *RandomRange) randSet(n int) ([]int, int) {
 	total := 0
 	next := 0
   for i,_ := range arr {
-		next = (rand.Intn(rr.max - rr.min) + rr.min) * 50
+		// returns a random number between min and max inclusively
+		next = (rand.Intn(rr.max - rr.min + 1) + rr.min + 1) * 50
 		arr[i] = next
 		total += next
   }
-  // reset the seed value to ensure next use is randomized
-  rr.seed = arr[0] 
+	// reset the seed value to ensure next use is randomized
+	// next seed must be != curr seed otherwise next randset will equal current
+	for i := 0; i < len(arr); i++ {
+		if  rr.seed != arr[i] {
+			rr.seed = arr[i]
+			break
+		}
+	}  
   return arr, total
 }
 
 func (rr *RandomRange) init() {
+	// reset rand.Seed
 	rand.Seed(time.Now().UnixNano() + int64(rr.seed))
 }
 
@@ -265,7 +268,7 @@ func (ag *ActorGroup) run(ctx context.Context, doneCh SignalChannel) {
 // NewActorGroup
 //------------------------------------------------------------------//
 func NewActorGroup(pkt jobPacket) ActorGroup {
-	randRange := RandomRange{0,pkt.randMin,pkt.randMax,nil}	
+	randRange := RandomRange{0,pkt.randMin,pkt.randMax}
 	actorGrp := make([]Actor, pkt.groupSize)
 	totals := make([]int, pkt.groupSize)
 	time2run := make(map[int]int, pkt.groupSize)	
@@ -274,7 +277,6 @@ func NewActorGroup(pkt jobPacket) ActorGroup {
 	var i, j, total, total_i int
 	for i,_ := range actorGrp {
 		j = i+1
-		randRange.init()
 		randSet, total = randRange.randSet(pkt.turnsLimit)
 		total_i = total + i
 		totals[i] = total_i
@@ -345,8 +347,8 @@ func main() {
 	randMin := 10
 	randMax := 50
 	verbose := false
-	simError := true
-	simDupTot := false
+	simError := false
+	simDupTot := true
 	var wg sync.WaitGroup
 	packet := jobPacket{groupSize,turnsLimit,randMin,randMax,verbose,simError,simDupTot}
 	handler := Handler{groupSize}
