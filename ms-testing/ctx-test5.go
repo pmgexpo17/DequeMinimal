@@ -51,11 +51,11 @@ func init() {
 // RandomRange
 //================================================================//
 type RandomRange struct {
-	seed, min, max int
+  seed, min, max int
 }
 
 func (rr *RandomRange) rand(size int, newSrc ...bool) int {
-	return rand.Intn(size) // return a random number between 0 - size-1
+  return rand.Intn(size) // return a random number between 0 - size-1
 }
 
 // get next random value within the interval including min and max
@@ -64,25 +64,25 @@ func (rr *RandomRange) randSet(n int) ([]int, int) {
   total := 0
   next := 0
   for i,_ := range arr {
-		// returns a random number between min and max inclusively
-		next = (rand.Intn(rr.max - rr.min + 1) + rr.min + 1) * 50
-		arr[i] = next
-		total += next
+    // returns a random number between min and max inclusively
+    next = (rand.Intn(rr.max - rr.min + 1) + rr.min + 1) * 50
+    arr[i] = next
+    total += next
   }
-	// reset the seed value to ensure next use is randomized
-	// next seed must be != curr seed otherwise next randset will equal current
-	for i := 0; i < len(arr); i++ {
-		if  rr.seed != arr[i] {
-			rr.seed = arr[i]
-			break
-		}
-	}  
+  // reset the seed value to ensure next use is randomized
+  // next seed must be != curr seed otherwise next randset will equal current
+  for i := 0; i < len(arr); i++ {
+    if  rr.seed != arr[i] {
+      rr.seed = arr[i]
+	break
+    }
+  }  
   return arr, total
 }
 
 func (rr *RandomRange) init() {
-	// reset rand.Seed
-	rand.Seed(time.Now().UnixNano() + int64(rr.seed))
+  // reset rand.Seed
+  rand.Seed(time.Now().UnixNano() + int64(rr.seed))
 }
 
 //================================================================//
@@ -272,61 +272,61 @@ func (ag *ActorGroup) run(ctx context.Context, doneCh SignalChannel) {
 // NewActorGroup
 //------------------------------------------------------------------//
 func NewActorGroup(pkt jobPacket) ActorGroup {
-	randRange := RandomRange{0,pkt.randMin,pkt.randMax}
-	actorGrp := make([]Actor, pkt.groupSize)
-	totals := make([]int, pkt.groupSize)
-	time2run := make(map[int]int, pkt.groupSize)	
-	randSet := make([]int, pkt.turnsLimit)
-	r := Actor{}
-	var i, j, total, total_i int
-	for i,_ := range actorGrp {
-		j = i+1
-		randSet, total = randRange.randSet(pkt.turnsLimit)
-		total_i = total + i
-		totals[i] = total_i
-		// this is just to make sure total_i is unique, for the corner-case
-		// where 2 or more totals are equal - simDupTot simulates this case
-		time2run[total_i] = i
-		r = Actor{j,pkt.turnsLimit,randSet,pkt.verbose,false,false}
-		fmt.Printf("actor[%d] randset : %v\n",r.id,r.randSet)
-		actorGrp[i] = r
-	}
-	if pkt.simError {
-		i = randRange.rand(pkt.groupSize)
-		actorGrp[i].simError = true
-		fmt.Printf("actor[%d] will simulate an error, which triggers terminate all\n",actorGrp[i].id)
-	} else if pkt.simDupTot {
-		i = randRange.rand(pkt.groupSize)
-		for k:=0; k < 1000; k++ {
-			j = randRange.rand(pkt.groupSize)
-			if j >= pkt.groupSize {
-				fmt.Printf("rand returned a value out of range : %d\n",j)
-			} else if i != j {
-				fmt.Printf("found alt i index value j : %d, %d\n",i,j)
-				break
-			}
-		}
-		fmt.Printf("actors[%d][%d] will simulate duplicate totals, which creates a doneCh race condition\n",i,j)		
-		total_j := totals[j]
-		delete(time2run,total_j)
-		for k,value := range actorGrp[i].randSet {
-			fmt.Printf("copying actorGrp[%d].randSet[%d] to actorGrp[%d].randSet[%d]\n",i,k,j,k)
-			actorGrp[j].randSet[k] = value
-		}
-		total_j = totals[i] - i + j
-		totals[j] = total_j
-		time2run[total_j] = j
-	}
-	sort.Ints(totals)
-	fmt.Printf("//================== Expected finish order =========================//\n\n")
-	for _,total_i := range totals {
-		i := time2run[total_i]
-		total = total_i - i
-		j = i + 1
-		fmt.Printf("//------------------ Microservice-%d, total : %d\n",j,total)
-	}
-	fmt.Printf("\n//==================================================================//\n")
-	return ActorGroup{actorGrp}
+  randRange := RandomRange{0,pkt.randMin,pkt.randMax}
+  actorGrp := make([]Actor, pkt.groupSize)
+  totals := make([]int, pkt.groupSize)
+  time2run := make(map[int]int, pkt.groupSize)	
+  randSet := make([]int, pkt.turnsLimit)
+  r := Actor{}
+  var i, j, total, total_i int
+  for i,_ := range actorGrp {
+    j = i+1
+    randSet, total = randRange.randSet(pkt.turnsLimit)
+    total_i = total + i
+    totals[i] = total_i
+    // this is just to make sure total_i is unique, for the corner-case
+    // where 2 or more totals are equal - simDupTot simulates this case
+    time2run[total_i] = i
+    r = Actor{j,pkt.turnsLimit,randSet,pkt.verbose,false,false}
+    fmt.Printf("actor[%d] randset : %v\n",r.id,r.randSet)
+    actorGrp[i] = r
+  }
+  if pkt.simError {
+    i = randRange.rand(pkt.groupSize)
+    actorGrp[i].simError = true
+    fmt.Printf("actor[%d] will simulate an error, which triggers terminate all\n",actorGrp[i].id)
+  } else if pkt.simDupTot {
+    i = randRange.rand(pkt.groupSize)
+    for k:=0; k < 1000; k++ {
+      j = randRange.rand(pkt.groupSize)
+      if j >= pkt.groupSize {
+        fmt.Printf("rand returned a value out of range : %d\n",j)
+      } else if i != j {
+        fmt.Printf("found alt i index value j : %d, %d\n",i,j)
+        break
+      }
+    }
+    fmt.Printf("actors[%d][%d] will simulate duplicate totals, which creates a doneCh race condition\n",i,j)		
+    total_j := totals[j]
+    delete(time2run,total_j)
+    for k,value := range actorGrp[i].randSet {
+      fmt.Printf("copying actorGrp[%d].randSet[%d] to actorGrp[%d].randSet[%d]\n",i,k,j,k)
+      actorGrp[j].randSet[k] = value
+    }
+    total_j = totals[i] - i + j
+    totals[j] = total_j
+    time2run[total_j] = j
+  }
+  sort.Ints(totals)
+  fmt.Printf("//================== Expected finish order =========================//\n\n")
+  for _,total_i := range totals {
+    i := time2run[total_i]
+    total = total_i - i
+    j = i + 1
+    fmt.Printf("//------------------ Microservice-%d, total : %d\n",j,total)
+  }
+  fmt.Printf("\n//==================================================================//\n")
+  return ActorGroup{actorGrp}
 }
 
 //------------------------------------------------------------------//
@@ -346,24 +346,24 @@ type jobPacket struct {
 // main
 //------------------------------------------------------------------//
 func main() {
-	groupSize := 7
-	turnsLimit := 10
-	randMin := 10
-	randMax := 50
-	verbose := false
-	simError := false
-	simDupTot := true
-	var wg sync.WaitGroup
-	packet := jobPacket{groupSize,turnsLimit,randMin,randMax,verbose,simError,simDupTot}
-	handler := Handler{groupSize}
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	wg.Add(1)	
-	go func() {
-		handler.run(packet, ctx)
-		wg.Done()
-	}()
-	fmt.Println("Waiting for completion ...")
-	wg.Wait()
-	fmt.Println("@@@@@@@@@@@ complete @@@@@@@@@@@@")
+  groupSize := 7
+  turnsLimit := 10
+  randMin := 10
+  randMax := 50
+  verbose := false
+  simError := false
+  simDupTot := true
+  var wg sync.WaitGroup
+  packet := jobPacket{groupSize,turnsLimit,randMin,randMax,verbose,simError,simDupTot}
+  handler := Handler{groupSize}
+  ctx, cancel := context.WithCancel(context.Background())
+  defer cancel()
+  wg.Add(1)	
+  go func() {
+    handler.run(packet, ctx)
+    wg.Done()
+  }()
+  fmt.Println("Waiting for completion ...")
+  wg.Wait()
+  fmt.Println("@@@@@@@@@@@ complete @@@@@@@@@@@@")
 }
