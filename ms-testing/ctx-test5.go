@@ -20,31 +20,31 @@
 package main
 
 import (
-	"context"
-	crypto_rand "crypto/rand"
-	"encoding/binary"	
-	"fmt"
-	"os"
-	"os/signal"
-	"math/rand"
-	"sort"
+  "context"
+  crypto_rand "crypto/rand"
+  "encoding/binary"	
+  "fmt"
+  "os"
+  "os/signal"
+  "math/rand"
+  "sort"
   "sync"
-	"syscall"
-	"time"
+  "syscall"
+  "time"
 )
 
 func init() {
-	var b [8]byte
-	_, err := crypto_rand.Read(b[:])
-	if err != nil {
-			panic("cannot seed math/rand package with crypto random number generator")
-	}
-	seed := int64(binary.LittleEndian.Uint64(b[:]))
-	if seed < 0 {
-		seed = -seed
-	}
-	fmt.Printf("@@@@@@@@ init rand.seed : %v @@@@@@@@@\n",seed)
-	rand.Seed(seed)
+  var b [8]byte
+  _, err := crypto_rand.Read(b[:])
+  if err != nil {
+	panic("cannot seed math/rand package with crypto random number generator")
+  }
+  seed := int64(binary.LittleEndian.Uint64(b[:]))
+  if seed < 0 {
+    seed = -seed
+  }
+  fmt.Printf("@@@@@@@@ init rand.seed : %v @@@@@@@@@\n",seed)
+  rand.Seed(seed)
 }
 
 //================================================================//
@@ -60,9 +60,9 @@ func (rr *RandomRange) rand(size int, newSrc ...bool) int {
 
 // get next random value within the interval including min and max
 func (rr *RandomRange) randSet(n int) ([]int, int) {
-	arr := make([]int, n)
-	total := 0
-	next := 0
+  arr := make([]int, n)
+  total := 0
+  next := 0
   for i,_ := range arr {
 		// returns a random number between min and max inclusively
 		next = (rand.Intn(rr.max - rr.min + 1) + rr.min + 1) * 50
@@ -89,179 +89,183 @@ func (rr *RandomRange) init() {
 // DoneSignal
 //================================================================//
 type DoneSignal struct {
-	id int
-	error error
+  id int
+  error error
 }
 
 //================================================================//
 // Actor
 //================================================================//
 type Actor struct {
-	id int
-	turnsLimit int
-	randSet []int
-	verbose bool	
-	simError bool	
-	active bool
+  id int
+  turnsLimit int
+  randSet []int
+  verbose bool	
+  simError bool	
+  active bool
 }
 
 //------------------------------------------------------------------//
 // print
 //------------------------------------------------------------------//
 func (r *Actor) printf(logTxt string, args ...interface{}) {
-	if r.verbose {
-		fmt.Printf(logTxt, args...)
-	}
+  if r.verbose {
+    fmt.Printf(logTxt, args...)
+  }
 }
 
 //------------------------------------------------------------------//
 // run
 //------------------------------------------------------------------//
 func (r *Actor) run(doneCh SignalChannel) {
-	turn := 0
-	naptime := 0
-	for r.active {
-		naptime = r.randSet[turn]
-		r.printf("actor[%d] is napping for %d milliseconds\n",r.id,naptime)	
-		for r.active {
-			time.Sleep(50 * time.Millisecond)
-			if naptime <= 0 {
-				break
-			}
-			naptime -= 50
-		}
-		turn += 1
-		if turn == r.turnsLimit {
-			if r.simError {
-				doneCh.write(DoneSignal{r.id,fmt.Errorf("actor[%d] produced an error\n",r.id)})
-			} else {
-				doneCh.write(DoneSignal{r.id,nil})
-			}
-			break
-		}
-	}
-	fmt.Printf("actor[%d] run is now complete\n",r.id)
+  turn := 0
+  naptime := 0
+  for r.active {
+    naptime = r.randSet[turn]
+    r.printf("actor[%d] is napping for %d milliseconds\n",r.id,naptime)	
+    for r.active {
+      time.Sleep(50 * time.Millisecond)
+      if naptime <= 0 {
+        break
+      }
+      naptime -= 50
+    }
+    turn += 1
+    if turn == r.turnsLimit {
+      if r.simError {
+	doneCh.write(DoneSignal{r.id,fmt.Errorf("actor[%d] produced an error\n",r.id)})
+      } else {
+        doneCh.write(DoneSignal{r.id,nil})
+      }
+      break
+    }
+  }
+  fmt.Printf("actor[%d] run is now complete\n",r.id)
 }
 
 //------------------------------------------------------------------//
 // start
 //------------------------------------------------------------------//
 func (r *Actor) start(ctx context.Context, doneCh SignalChannel) {
-	fmt.Printf("actor[%d] is running ...\n",r.id)	
-	r.active = true	
-	go r.run(doneCh)
-	for {
-		select {
-			case <-ctx.Done():
-				r.active = false
-				fmt.Printf("actor[%d] is canceled!\n",r.id)
-				return
-		}
-	}
+  fmt.Printf("actor[%d] is running ...\n",r.id)	
+  r.active = true	
+  go r.run(doneCh)
+  for {
+    select {
+      case <-ctx.Done():
+        r.active = false
+	fmt.Printf("actor[%d] is canceled!\n",r.id)
+	return
+    }
+  }
 }
 
 //================================================================//
 // Handler
 //================================================================//
 type Handler struct {	
-	groupSize int
+  groupSize int
+  status int
 }
 
 //------------------------------------------------------------------//
 // handle
 //------------------------------------------------------------------//
 func (h *Handler) handle(ctx context.Context, doneCh SignalChannel) {
-	doneCounter := 0
-	active := true
-	for active {
-		select {
-			case signal, ok := <-doneCh.ch:
-				if !ok {
-					fmt.Printf("!!!!!!! doneCh is closed !!!!!!!!")
-					break
-				}
-				if signal.error != nil {
-					active = false
-					fmt.Printf("microservice[%d] has failed, all actors are now cancelled\n%v\n",signal.id,signal.error)
-					break
-				}
-				fmt.Printf("@@@@@@@@@@@ Microservice[%d] is complete @@@@@@@@@@\n",signal.id)
-				doneCounter += 1
-				if doneCounter == h.groupSize {
-					active = false
-					fmt.Printf("!!! Microservice group is now complete and successful !!!\n")					
-					break
-				}
-			case <-ctx.Done():
-				active = false
-				fmt.Printf("handler is canceled!\n")
-				// return instead of break to avoid continuous loop, 
-				// when fired Done() == true until closed
-				break
-		}
+  doneCounter := 0
+  active := true
+  for active {
+    select {
+      case signal, ok := <-doneCh.ch:
+	if !ok {
+	  fmt.Printf("!!!!!!! doneCh is closed !!!!!!!!")
+	  break
 	}
-	fmt.Println("!!!!!!!!!! handler is complete !!!!!!!!!")	
+        if signal.error != nil {
+	  active = false
+	  fmt.Printf("microservice[%d] has failed, all actors are now cancelled\n%v\n",signal.id,signal.error)
+	  h.status = 500
+	  break
+	}
+	fmt.Printf("@@@@@@@@@@@ Microservice[%d] is complete @@@@@@@@@@\n",signal.id)
+	doneCounter += 1
+	if doneCounter == h.groupSize {
+	  active = false
+	  fmt.Printf("!!! Microservice group is now complete and successful !!!\n")
+	  h.status = 200
+	  break
+	}
+      case <-ctx.Done():
+	active = false
+	fmt.Printf("handler is canceled!\n")
+	h.status = 409
+        break
+    }
+  }
+  fmt.Println("!!!!!!!!!! handler is complete !!!!!!!!!")	
 }
 
 //------------------------------------------------------------------//
 // run
 //------------------------------------------------------------------//
 func (h *Handler) run(jpacket jobPacket, ctx10 context.Context) {
-	//ctx, cancel := context.WithCancel(context.Background())
-	ctx11, cancel := context.WithCancel(ctx10)
-	doneCh := SignalChannel{
-		ch: make(chan DoneSignal, h.groupSize)}
+  //ctx, cancel := context.WithCancel(context.Background())
+  ctx11, cancel := context.WithCancel(ctx10)
+  doneCh := SignalChannel{
+    ch: make(chan DoneSignal, h.groupSize)}
   defer close(doneCh.ch)
-	actorGroup := NewActorGroup(jpacket)
-	actorGroup.run(ctx11, doneCh)
-	go h.sigterm(cancel)
-	h.handle(ctx11, doneCh)
-	cancel()
-	// wait for actors to respond to cancelation before closing the doneCh
-	time.Sleep(2 * time.Second)
+  actorGroup := NewActorGroup(jpacket)
+  actorGroup.run(ctx11, doneCh)
+  go h.sigterm(cancel)
+  h.handle(ctx11, doneCh)
+  if h.status != 200 {
+    cancel()
+  }
+  // wait for actors to respond to cancelation before closing the doneCh
+  time.Sleep(2 * time.Second)
 }
 
 //------------------------------------------------------------------//
 // sigterm
 //------------------------------------------------------------------//
 func (h *Handler) sigterm(cancel context.CancelFunc) {
-	defer cancel()
+  defer cancel()
   sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-	fmt.Printf("ready to shutdown on SIGTERM signal ...\n")	
+  signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+  fmt.Printf("ready to shutdown on SIGTERM signal ...\n")	
   signal := <-sigCh
-	fmt.Printf("signal %v detected, shutting down ...\n",signal)
+  fmt.Printf("signal %v detected, shutting down ...\n",signal)
 }
 
 //================================================================//
 // SignalChannel
 //================================================================//
 type SignalChannel struct {
-	sync.Mutex
-	ch chan DoneSignal
+  sync.Mutex
+  ch chan DoneSignal
 }
 
 func (ch SignalChannel) write(signal DoneSignal) {
-	ch.Lock()
-	defer ch.Unlock()
-	ch.ch <- signal
+  ch.Lock()
+  defer ch.Unlock()
+  ch.ch <- signal
 }
 
 //================================================================//
 // ActorGroup
 //================================================================//
 type ActorGroup struct {
-	group []Actor	
+  group []Actor	
 }
 
 //------------------------------------------------------------------//
 // run
 //------------------------------------------------------------------//
 func (ag *ActorGroup) run(ctx context.Context, doneCh SignalChannel) {
-	for i,_ := range ag.group {
-		actor := ag.group[i]
-	  go actor.start(ctx, doneCh)
-	}
+  for i,_ := range ag.group {
+    actor := ag.group[i]
+    go actor.start(ctx, doneCh)
+  }
 }
 
 //------------------------------------------------------------------//
@@ -329,13 +333,13 @@ func NewActorGroup(pkt jobPacket) ActorGroup {
 // jobPacket
 //------------------------------------------------------------------//
 type jobPacket struct {
-	groupSize int
-	turnsLimit int
-	randMin int
-	randMax int
-	verbose bool
-	simError bool
-	simDupTot bool
+  groupSize int
+  turnsLimit int
+  randMin int
+  randMax int
+  verbose bool
+  simError bool
+  simDupTot bool
 }
 
 //------------------------------------------------------------------//
